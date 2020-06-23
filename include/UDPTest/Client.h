@@ -105,6 +105,8 @@ namespace UDPTest
 		std::unordered_map<uint32_t, std::chrono::high_resolution_clock::time_point> m_sendTimes;
 		std::chrono::high_resolution_clock::duration m_totalRecvTime;
 		std::chrono::high_resolution_clock::duration m_maxRecvTime;
+		std::chrono::high_resolution_clock::duration m_recvTimeSinceLastCheck;
+		std::chrono::high_resolution_clock::duration m_maxRecvTimeSinceLastCheck;
 		uint32_t m_pending;
 		uint32_t m_packetSize;
 		uint32_t m_seq;

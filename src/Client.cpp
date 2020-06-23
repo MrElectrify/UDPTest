@@ -3,6 +3,7 @@
 #include <UDPTest/Common.h>
 
 #include <charconv>
+#include <sstream>
 #include <stdexcept>
 
 using UDPTest::Client;
@@ -12,6 +13,7 @@ Client::Client(const std::string& address, const std::string& port,
 	m_controlSocket(m_worker), m_transportSocket(m_worker),
 	m_signals(m_worker), m_endTimer(m_worker), m_printTimer(m_worker), 
 	m_sendTimer(m_worker), m_totalRecvTime(), m_maxRecvTime(),
+	m_recvTimeSinceLastCheck(), m_maxRecvTimeSinceLastCheck(0),
 	m_pending(0), m_seq(0), m_ack(0), m_time(time), m_totalBytes(0), 
 	m_bytesSinceLastCheck(0), m_packetsSinceLastCheck(0)
 {
@@ -221,6 +223,9 @@ void Client::ReadTransport() noexcept
 					if (recvTime > m_maxRecvTime)
 						m_maxRecvTime = recvTime;
 					m_totalRecvTime += recvTime;
+					if (recvTime > m_maxRecvTimeSinceLastCheck)
+						m_maxRecvTimeSinceLastCheck = recvTime;
+					m_recvTimeSinceLastCheck += recvTime;
 					m_sendTimes.erase(seqIt);
 				}
 				else
@@ -302,7 +307,7 @@ void Client::AwaitFinish() noexcept
 
 void Client::AwaitPrint() noexcept
 {
-	m_printTimer.expires_at(m_printTimer.expiry() + std::chrono::seconds(1));
+	m_printTimer.expires_at(m_printTimer.expiry() + std::chrono::milliseconds(200));
 	m_printTimer.async_wait([this](const ErrorCode_t& ec)
 		{
 			if (ec)
@@ -313,11 +318,13 @@ void Client::AwaitPrint() noexcept
 				BitsToString(m_bytesSinceLastCheck * 8), m_packetsSinceLastCheck);
 			SPDLOG_INFO("Average latency: {} ms\tMax latency: {} ms",
 				static_cast<float>(std::chrono::duration_cast<std::chrono::microseconds>(
-					m_totalRecvTime / m_ack).count()) / 1000.f,
+					m_recvTimeSinceLastCheck / m_packetsSinceLastCheck).count()) / 1000.f,
 				static_cast<float>(std::chrono::duration_cast<std::chrono::microseconds>(
-					m_maxRecvTime).count()) / 1000.f);
+					m_maxRecvTimeSinceLastCheck).count()) / 1000.f);
 			m_bytesSinceLastCheck = 0;
 			m_packetsSinceLastCheck = 0;
+			m_recvTimeSinceLastCheck = {};
+			m_maxRecvTimeSinceLastCheck = {};
 		});
 }
 
@@ -341,7 +348,9 @@ void Client::PrintEndStats() noexcept
 	SPDLOG_INFO("End stats:");
 	SPDLOG_INFO("Total packets sent: {}\tTotal packets received: {}",
 		m_seq, m_ack);
-	SPDLOG_INFO("Packets lost: {} ({}%)\tPackets unsent: {} ({}%)",
+	SPDLOG_INFO("Sent per second: {}\tReceived per second: {}",
+		m_seq / m_time, m_ack / m_time);
+	SPDLOG_INFO("Packets lost: {} ({:.3f}%)\tPackets unsent: {} ({:.3f}%)",
 		m_seq - m_ack, (static_cast<float>(m_seq - m_ack) / m_seq) * 100,
 		m_pending, static_cast<float>(m_pending) / (m_pending + m_seq) * 100);
 	SPDLOG_INFO("Total bits sent: {}\tEnding bitrate: {}",
@@ -355,13 +364,17 @@ void Client::PrintEndStats() noexcept
 
 std::string Client::BitsToString(uint64_t bits) noexcept
 {
+	float fBits = static_cast<float>(bits);
 	constexpr const char postfixes[] = { ' ', 'K', 'M', 'G' };
 	uint8_t i = 0;
-	while (bits > 1000 &&
+	while (fBits >= 1000.f &&
 		i < 3)
 	{
-		bits /= 1000;
+		fBits /= 1000;
 		++i;
 	}
-	return std::to_string(bits) + postfixes[i];
+	std::ostringstream oss;
+	oss.precision(3);
+	oss << std::fixed << fBits << postfixes[i];
+	return oss.str();
 }
