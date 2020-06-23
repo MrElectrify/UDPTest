@@ -124,7 +124,7 @@ void Connection::ReadTransport() noexcept
 		{
 			if (!ec)
 			{
-				SPDLOG_TRACE("Received random packet of seq {}",
+				SPDLOG_DEBUG("Received random packet of seq {}",
 					m_randomPacket.GetSeq());
 				m_packetAck = PacketAck(m_randomPacket.GetSeq());
 				WriteTransport();
@@ -146,7 +146,7 @@ void Connection::WriteTransport() noexcept
 		{
 			if (!ec)
 			{
-				SPDLOG_TRACE("Wrote ack {}",
+				SPDLOG_DEBUG("Wrote ack {}",
 					m_packetAck.GetSeq());
 				ReadTransport();
 			}

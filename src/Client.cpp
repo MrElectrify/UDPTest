@@ -142,7 +142,8 @@ void Client::ReadControl() noexcept
 					}
 					// open local transport
 					ErrorCode_t ec;
-					if (m_transportSocket.open(UDPProto_t::v4(), ec), ec)
+					if (m_transportSocket.open(UDPProto_t::v4(), ec), ec ||
+						m_transportSocket.bind(UDPProto_t::endpoint(UDPProto_t::v4(), 5602), ec), ec)
 					{
 						SPDLOG_ERROR("Failed to open local transport socket: {}",
 							ec.message());
@@ -213,7 +214,7 @@ void Client::ReadTransport() noexcept
 		{
 			if (!ec)
 			{
-				SPDLOG_TRACE("Received ack for seq {}",
+				SPDLOG_DEBUG("Received ack for seq {}",
 					m_packetAck.GetSeq());
 				const auto seqIt = m_sendTimes.find(m_packetAck.GetSeq());
 				if (seqIt != m_sendTimes.end())
@@ -251,7 +252,7 @@ void Client::WriteTransport() noexcept
 		{
 			if (!ec)
 			{
-				SPDLOG_TRACE("Wrote random packet with seq {}",
+				SPDLOG_DEBUG("Wrote random packet with seq {}",
 					m_randomPacket.GetSeq());
 				m_sendTimes.emplace(m_randomPacket.GetSeq(), std::chrono::high_resolution_clock::now());
 				m_bytesSinceLastCheck += bytes;
@@ -317,10 +318,10 @@ void Client::AwaitPrint() noexcept
 			SPDLOG_INFO("Bits sent: {}\tPackets sent: {}",
 				BitsToString(m_bytesSinceLastCheck * 8), m_packetsSinceLastCheck);
 			SPDLOG_INFO("Average latency: {} ms\tMax latency: {} ms",
-				static_cast<float>(std::chrono::duration_cast<std::chrono::microseconds>(
-					m_recvTimeSinceLastCheck / m_packetsSinceLastCheck).count()) / 1000.f,
-				static_cast<float>(std::chrono::duration_cast<std::chrono::microseconds>(
-					m_maxRecvTimeSinceLastCheck).count()) / 1000.f);
+				(m_packetsSinceLastCheck != 0) ? std::chrono::duration_cast<std::chrono::microseconds>(
+					m_recvTimeSinceLastCheck / m_packetsSinceLastCheck).count() / 1000.f : 0,
+				std::chrono::duration_cast<std::chrono::microseconds>(
+					m_maxRecvTimeSinceLastCheck).count() / 1000.f);
 			m_bytesSinceLastCheck = 0;
 			m_packetsSinceLastCheck = 0;
 			m_recvTimeSinceLastCheck = {};
@@ -356,10 +357,10 @@ void Client::PrintEndStats() noexcept
 	SPDLOG_INFO("Total bits sent: {}\tEnding bitrate: {}",
 		BitsToString(m_totalBytes * 8), BitsToString(m_totalBytes / m_time * 8));
 	SPDLOG_INFO("Average latency: {} ms\tMax latency: {} ms",
-		static_cast<float>(std::chrono::duration_cast<std::chrono::microseconds>(
-			m_totalRecvTime / m_ack).count()) / 1000.f,
-		static_cast<float>(std::chrono::duration_cast<std::chrono::microseconds>(
-			m_maxRecvTime).count()) / 1000.f);
+		(m_ack != 0) ? std::chrono::duration_cast<std::chrono::microseconds>(
+			m_totalRecvTime / m_ack).count() / 1000.f : 0,
+		std::chrono::duration_cast<std::chrono::microseconds>(
+			m_maxRecvTime).count() / 1000.f);
 }
 
 std::string Client::BitsToString(uint64_t bits) noexcept
