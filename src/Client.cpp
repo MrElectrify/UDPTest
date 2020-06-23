@@ -214,7 +214,7 @@ void Client::ReadTransport() noexcept
 		{
 			if (!ec)
 			{
-				SPDLOG_DEBUG("Received ack for seq {}",
+				SPDLOG_TRACE("Received ack for seq {}",
 					m_packetAck.GetSeq());
 				const auto seqIt = m_sendTimes.find(m_packetAck.GetSeq());
 				if (seqIt != m_sendTimes.end())
@@ -252,7 +252,7 @@ void Client::WriteTransport() noexcept
 		{
 			if (!ec)
 			{
-				SPDLOG_DEBUG("Wrote random packet with seq {}",
+				SPDLOG_TRACE("Wrote random packet with seq {}",
 					m_randomPacket.GetSeq());
 				m_sendTimes.emplace(m_randomPacket.GetSeq(), std::chrono::high_resolution_clock::now());
 				m_bytesSinceLastCheck += bytes;

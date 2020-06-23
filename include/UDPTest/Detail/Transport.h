@@ -57,7 +57,7 @@ namespace UDPTest
 
 			uint32_t GetSeq() const noexcept { return ntohl(m_seq); }
 
-			std::array<asio::mutable_buffer, 2> GetBuffers() noexcept
+			std::array<asio::mutable_buffer, 1> GetBuffers() noexcept
 			{
 				return { asio::buffer(&m_seq, 4) };
 			}
