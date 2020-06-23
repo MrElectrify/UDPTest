@@ -311,6 +311,11 @@ void Client::AwaitPrint() noexcept
 			SPDLOG_INFO("-------- Info --------");
 			SPDLOG_INFO("Bits sent: {}\tPackets sent: {}",
 				BitsToString(m_bytesSinceLastCheck * 8), m_packetsSinceLastCheck);
+			SPDLOG_INFO("Average latency: {} ms\tMax latency: {} ms",
+				static_cast<float>(std::chrono::duration_cast<std::chrono::microseconds>(
+					m_totalRecvTime / m_ack).count()) / 1000.f,
+				static_cast<float>(std::chrono::duration_cast<std::chrono::microseconds>(
+					m_maxRecvTime).count()) / 1000.f);
 			m_bytesSinceLastCheck = 0;
 			m_packetsSinceLastCheck = 0;
 		});
